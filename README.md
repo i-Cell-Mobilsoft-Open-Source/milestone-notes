@@ -18,12 +18,12 @@ This action requires GitHub Actions to be set up on your repository. If you're n
 ```yaml
 - uses: i-Cell-Mobilsoft-Open-Source/milestone-notes@master
   with:
-  	token: ${{ secrets.GITHUB_TOKEN }}
+    token: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ### License
 
-This project is licensed under the terms of the MIT License. See the [LICENSE](https://github.com/i-Cell-Mobilsoft-Open-Source/milestone-notes/LICENSE.md) file for details.
+This project is licensed under the terms of the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ### Support
 
