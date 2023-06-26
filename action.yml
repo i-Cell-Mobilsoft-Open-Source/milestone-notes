@@ -1,0 +1,15 @@
+name: 'milestone-notes'
+description: 'Generate release notes from milestone'
+inputs:
+  token:
+    description: 'GitHub token'
+    required: true
+  owner:
+    description: 'GitHub repository owner'
+    required: false
+  repo:
+    description: 'GitHub repository name'
+    required: false
+runs:
+  using: 'node16'
+  main: 'dist/index.js'
