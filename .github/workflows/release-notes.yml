@@ -1,0 +1,18 @@
+on:
+  milestone:
+    types: [closed]
+
+name: Release Notes Generation
+permissions: write-all
+
+jobs:
+  create-release-notes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - uses: i-Cell-Mobilsoft-Open-Source/milestone-notes@master
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - run: gh release create ${{ github.event.milestone.title }} -F RELEASE_NOTES.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
