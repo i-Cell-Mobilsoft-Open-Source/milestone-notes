@@ -2,7 +2,14 @@ const core = require('@actions/core');
 const github = require('@actions/github');
 const fs = require('fs');
 
-const token = core.getInput('token', { required: true });
+const token = core.getInput('token');
+
+// Check if token is provided
+if (!token) {
+  core.setFailed('Missing required input: token.');
+  return;
+}
+
 const octokit = github.getOctokit(token);
 const context = github.context;
 
@@ -10,11 +17,26 @@ const owner = core.getInput('owner') || context.payload.repository.owner.login;
 const repo = core.getInput('repo') || context.payload.repository.name;
 const milestoneNumber = context.payload.milestone.number;
 
-const labelMapping = {
-  bug: "Bug Fixes",
-  enhancement: "New Features",
-  feature: "New Features",
-};
+// Get labelMapping from input, parse it as JSON, or use default mapping if input is not provided
+let labelMapping = {};
+
+try {
+  const input = core.getInput('labelMapping');
+  if (input) {
+    labelMapping = JSON.parse(input);
+  }
+} catch (error) {
+  console.error(error);
+  // handle the error
+}
+
+if (Object.keys(labelMapping).length === 0) {
+  labelMapping = {
+    bug: "Bug Fixes",
+    enhancement: "New Features",
+    documentation: "Documentation",
+  };
+}
 
 const noLabelGroup = 'Closed Issues';
 
@@ -71,18 +93,17 @@ const generateReleaseNotes = async () => {
         issueGroups.get(noLabelGroup).push(issue);
       } else {
         // Handle issues with labels
-        issue.labels.nodes.forEach((label) => {
-          const mappedLabel = labelMapping[label.name] || label.name;
+        const label = issue.labels.nodes[0];
+        const mappedLabel = labelMapping[label.name] || label.name;
 
-          if (!issueGroups.has(mappedLabel)) {
-            issueGroups.set(mappedLabel, []);
-          }
+        if (!issueGroups.has(mappedLabel)) {
+          issueGroups.set(mappedLabel, []);
+        }
 
-          const alreadyAdded = issueGroups.get(mappedLabel).some(groupedIssue => groupedIssue.number === issue.number);
-          if (!alreadyAdded) {
-            issueGroups.get(mappedLabel).push(issue);
-          }
-        });
+        const alreadyAdded = issueGroups.get(mappedLabel).some(groupedIssue => groupedIssue.number === issue.number);
+        if (!alreadyAdded) {
+          issueGroups.get(mappedLabel).push(issue);
+        }
       }
     });
 

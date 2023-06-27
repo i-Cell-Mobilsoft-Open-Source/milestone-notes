@@ -8,20 +8,41 @@ const core = __nccwpck_require__(2186);
 const github = __nccwpck_require__(5438);
 const fs = __nccwpck_require__(7147);
 
-const token = core.getInput('token', { required: true });
+const token = core.getInput('token');
+
+// Check if token is provided
+if (!token) {
+  core.setFailed('Missing required input: token.');
+  return;
+}
+
 const octokit = github.getOctokit(token);
 const context = github.context;
 
-const owner = core.getInput('owner') || process.env.GITHUB_REPOSITORY_OWNER;
-const repo = core.getInput('repo') || process.env.GITHUB_REPOSITORY_NAME;
-const milestoneNumber = context.payload.milestone.number; // assuming milestone event
+const owner = core.getInput('owner') || context.payload.repository.owner.login;
+const repo = core.getInput('repo') || context.payload.repository.name;
+const milestoneNumber = context.payload.milestone.number;
 
-const labelMapping = {
-  bug: "Bug Fixes",
-  enhancement: "New Features",
-  feature: "New Features",
-  // Add more mappings here as necessary
-};
+// Get labelMapping from input, parse it as JSON, or use default mapping if input is not provided
+let labelMapping = {};
+
+try {
+  const input = core.getInput('labelMapping');
+  if (input) {
+    labelMapping = JSON.parse(input);
+  }
+} catch (error) {
+  console.error(error);
+  // handle the error
+}
+
+if (Object.keys(labelMapping).length === 0) {
+  labelMapping = {
+    bug: "Bug Fixes",
+    enhancement: "New Features",
+    documentation: "Documentation",
+  };
+}
 
 const noLabelGroup = 'Closed Issues';
 
@@ -50,9 +71,10 @@ const query = `
 `;
 
 const generateReleaseNotes = async () => {
+  core.info('Generating release notes...');
+
   if (!owner || !repo || !milestoneNumber || !token) {
-    core.error('Missing required context variables: repo owner, repo name, milestone number or repo token.');
-    core.setFailed('Action failed due to missing input/context variables.');
+    core.setFailed('Missing required context variables: repo owner, repo name, milestone number or repo token.');
     return;
   }
 
@@ -60,8 +82,7 @@ const generateReleaseNotes = async () => {
     const data = await octokit.graphql(query, { owner, repo, milestoneNumber });
 
     if (!data || !data.repository || !data.repository.milestone) {
-      core.error('Invalid response from GitHub API');
-      core.setFailed('Action failed due to invalid API response.');
+      core.setFailed('Invalid response from GitHub API.');
       return;
     }
 
@@ -78,20 +99,21 @@ const generateReleaseNotes = async () => {
         issueGroups.get(noLabelGroup).push(issue);
       } else {
         // Handle issues with labels
-        issue.labels.nodes.forEach((label) => {
-          const mappedLabel = labelMapping[label.name] || label.name;
+        const label = issue.labels.nodes[0];
+        const mappedLabel = labelMapping[label.name] || label.name;
 
-          if (!issueGroups.has(mappedLabel)) {
-            issueGroups.set(mappedLabel, []);
-          }
+        if (!issueGroups.has(mappedLabel)) {
+          issueGroups.set(mappedLabel, []);
+        }
 
-          const alreadyAdded = issueGroups.get(mappedLabel).some(groupedIssue => groupedIssue.number === issue.number);
-          if (!alreadyAdded) {
-            issueGroups.get(mappedLabel).push(issue);
-          }
-        });
+        const alreadyAdded = issueGroups.get(mappedLabel).some(groupedIssue => groupedIssue.number === issue.number);
+        if (!alreadyAdded) {
+          issueGroups.get(mappedLabel).push(issue);
+        }
       }
     });
+
+    core.info(`Found ${issueGroups.size} labels and ${issues.length} issues.`);
 
     let releaseNotes = '';
 
@@ -107,11 +129,10 @@ const generateReleaseNotes = async () => {
     }
 
     fs.writeFileSync('RELEASE_NOTES.md', releaseNotes);
-    core.info('Release notes have been successfully generated!');
+    core.info('RELEASE_NOTES.md has been successfully generated!');
 
   } catch (error) {
-    core.error(`Error generating release notes: ${error.message}`);
-    core.setFailed(error.message);
+    core.setFailed(`Error generating release notes: ${error.message}`);
   }
 };
 
