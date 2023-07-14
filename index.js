@@ -15,7 +15,13 @@ const context = github.context;
 
 const owner = core.getInput('owner') || context.payload.repository.owner.login;
 const repo = core.getInput('repo') || context.payload.repository.name;
-const milestoneNumber = context.payload.milestone.number;
+const milestoneNumber = parseInt(core.getInput('milestone')) || context.payload.milestone.number;
+
+// Check if milestone number is valid
+if (isNaN(milestoneNumber)) {
+  core.setFailed('Invalid milestone number.');
+  return;
+}
 
 // Get labelMapping from input, parse it as JSON, or use default mapping if input is not provided
 let labelMapping = {};
@@ -30,6 +36,7 @@ try {
   // handle the error
 }
 
+// If no labelMapping was provided or it was invalid, use the default mapping
 if (Object.keys(labelMapping).length === 0) {
   labelMapping = {
     bug: "Bug Fixes",
