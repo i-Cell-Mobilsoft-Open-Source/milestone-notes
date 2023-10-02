@@ -10,6 +10,9 @@ inputs:
   repo:
     description: 'GitHub repository name'
     required: false
+  milestone:
+    description: 'Milestone number'
+    required: false
   labelMapping:
     description: 'Mapping of labels to group names in JSON format'
     required: false
